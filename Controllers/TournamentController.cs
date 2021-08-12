@@ -8,7 +8,7 @@ namespace WebApplication1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    
+
     public class TournamentController : Controller
     {
         private readonly IConfiguration _configuration;
@@ -22,6 +22,16 @@ namespace WebApplication1.Controllers
             MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
 
             var dbList = dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").AsQueryable();
+
+            return new JsonResult(dbList);
+        }
+        [HttpGet("getById")]
+        public JsonResult Get(int id)
+        {
+            MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
+            var filter = Builders<Tournament>.Filter.Eq("TournamentId", id);
+
+            var dbList = dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").Find(filter).ToList();
 
             return new JsonResult(dbList);
         }
