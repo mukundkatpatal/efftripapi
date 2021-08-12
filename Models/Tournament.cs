@@ -7,11 +7,14 @@ using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace WebApplication1.Models
+
 {
+
     public class Tournament
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
+        
 
         public ObjectId Id { get; set; }
 
