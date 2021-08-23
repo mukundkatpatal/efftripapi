@@ -1,103 +1,83 @@
-﻿using System.Linq;
-using System.Net;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using MongoDB.Driver;
-using WebApplication1.Models;
-namespace WebApplication1.Controllers
+using MongoDB.Bson;
+using Newtonsoft.Json;
+using rest.Infra;
+using rest.Model;
+using rest.Repository.Interface;
+
+namespace rest.Controllers
 {
+    [Authorize(Policy = "Member")]
+    [Produces("application/json")]
     [Route("api/[controller]")]
-    [ApiController]
-    
     public class TournamentController : Controller
     {
-        private readonly IConfiguration _configuration;
-        public TournamentController(IConfiguration configuration)
+        private readonly ITournamentRepository _TournamentRepository;
+
+        public TournamentController(ITournamentRepository TournamentRepository)
         {
-            _configuration = configuration;
+            _TournamentRepository = TournamentRepository;
         }
+
+        [NoCache]
         [HttpGet]
-        public JsonResult Get()
+        public Task<IEnumerable<Tournament>> Get()
         {
-            MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
-
-            var dbList = dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").AsQueryable();
-
-            return new JsonResult(dbList);
+            return GetTournamentInternal();
         }
+
+        private async Task<IEnumerable<Tournament>> GetTournamentInternal()
+        {
+            return await _TournamentRepository.GetAllTournament();
+        }
+
+        // GET api/Tournaments/5
+        [HttpGet("{id}")]
+        public Task<Tournament> Get(string id)
+        {
+            return GetTournamentByIdInternal(id);
+        }
+
+        private async Task<Tournament> GetTournamentByIdInternal(string id)
+        {
+            return await _TournamentRepository.GetTournament(id) ?? new Tournament();
+        }
+
+        // POST api/Tournament
         [HttpPost]
-        
-        public JsonResult Post([FromBody] Tournament tournament)
+        public void Post([FromBody] Tournament tournament)
         {
-            try
-            {
-                if (ModelState.IsValid)
-                {
-                    MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
+            _TournamentRepository.AddTournament(new Tournament() 
+                {   Id = ObjectId.GenerateNewId().ToString(),
+                    Name = tournament.Name, 
+                    Place = tournament.Place,
+                    StartDate=tournament.StartDate,
+                    EndDate=tournament.EndDate,
+                    Rounds=tournament.Rounds,
+                    Category=tournament.Category,
+                    URL=tournament.URL
 
-                    int LastTournamentId = dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").AsQueryable().Count();
-                    tournament.TournamentId = LastTournamentId + 1;
-
-                    dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").InsertOne(tournament);
-
-                    return new JsonResult("Added Successfully");
-
-                }
-                else
-                {
-
-                    return new JsonResult(HttpStatusCode.BadRequest, "Error retriveing Data from Database");
-
-                }
-
-
-            }
-            catch
-            {
-                return new JsonResult(HttpStatusCode.BadRequest, "Error retriveing Data from Database");
-            }
-           
+                   
+                });
         }
 
-
-        [HttpPut]
-        public JsonResult Put([FromBody] Tournament tournament)
+        // PUT api/Tournaments/5
+        [HttpPut("{id}")]
+        public void Put(string id, [FromBody]Tournament tournament)
         {
-
-
-            MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
-
-            var filter = Builders<Tournament>.Filter.Eq("TournamentId", tournament.TournamentId);
-
-
-            var update = Builders<Tournament>.Update.Set("TournamentName", tournament.TournamentName)
-                                                     .Set("Place", tournament.Place)
-                                                     .Set("StartDate", tournament.StartDate)
-                                                     .Set("EndDate", tournament.EndDate)
-                                                     .Set("Rounds", tournament.Rounds)
-                                                     .Set("Category", tournament.Category)
-                                                     .Set("Website", tournament.Website);
-
-
-
-            dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").UpdateOne(filter, update);
-
-
-            return new JsonResult("Updated Successfully");
+            _TournamentRepository.UpdateTournamentDocument(id, tournament);
         }
+
+        // DELETE api/Tournaments/23243423
         [HttpDelete("{id}")]
-        public JsonResult Delete(int id)
+        public void Delete(string id)
         {
-            MongoClient dbClient = new MongoClient(_configuration.GetConnectionString("TournamentAppCon"));
-
-            var filter = Builders<Tournament>.Filter.Eq("TournamentId", id);
-
-
-            dbClient.GetDatabase("Tournament").GetCollection<Tournament>("TournamentDetails").DeleteOne(filter);
-
-            return new JsonResult("Deleted Successfully");
+            _TournamentRepository.RemoveTournament(id);
         }
-
-
     }
 }
